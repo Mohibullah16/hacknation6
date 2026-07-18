@@ -10,9 +10,9 @@ _Last updated: 2026-07-19 (after Phase 4, API layer). If a new Claude session pi
 | 2. Extraction engine (text-layer + OCR) | ✅ done — 159/159 gold fields |
 | 3. Calc + readiness + citations + submissions | ✅ done — all gold checklists reproduced |
 | 4. FastAPI + session/privacy/safety + smoke test | ✅ done — `eval/api_smoke.py` all-pass |
-| 5. Frontend (React+Vite, WCAG 2.2 AA) | ⬜ TODO |
-| 6. Packet/Discover UI polish | ⬜ TODO (backend endpoints exist) |
-| 7. Docs + demo script + video + final eval | ⬜ TODO |
+| 5. Frontend (React+Vite, WCAG 2.2 AA) | ✅ done — builds clean, dev servers verified end-to-end |
+| 6. Packet/Discover UI | ✅ done (Prepare + Discover pages) |
+| 7. Docs + demo script + final eval | ✅ done — **only the demo video recording remains (user task, see docs/demo-script.md)** |
 
 ## Verify current state (run from `realdoor/`)
 
