@@ -83,9 +83,10 @@ def group_lines(tokens: list[dict]) -> list[list[dict]]:
 
 
 def detect_document_type(tokens: list[dict]) -> Optional[str]:
-    joined = " ".join(t["text"] for t in tokens).lower()
+    # Space-insensitive: OCR may merge title words ('ApplicationSummary').
+    joined = "".join(t["text"] for t in tokens).lower()
     for title, doc_type in TITLE_TO_TYPE.items():
-        if title in joined:
+        if title.replace(" ", "") in joined:
             return doc_type
     return None
 
