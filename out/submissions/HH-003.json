@@ -1,0 +1,88 @@
+{
+  "household_id": "HH-003",
+  "annualized_income": 40230.0,
+  "comparison": "below_or_equal",
+  "readiness_status": "READY_TO_REVIEW",
+  "review_reasons": [],
+  "citations": [
+    {
+      "document_id": "HH-003-D02",
+      "page": 1,
+      "bbox": [
+        360.0,
+        607.93,
+        398.34,
+        621.93
+      ],
+      "bbox_units": "pdf_points_bottom_left_origin",
+      "field": "pay_frequency"
+    },
+    {
+      "document_id": "HH-003-D02",
+      "page": 1,
+      "bbox": [
+        52.0,
+        527.93,
+        76.0,
+        541.93
+      ],
+      "bbox_units": "pdf_points_bottom_left_origin",
+      "field": "regular_hours"
+    },
+    {
+      "document_id": "HH-003-D02",
+      "page": 1,
+      "bbox": [
+        190.0,
+        527.93,
+        220.58,
+        541.93
+      ],
+      "bbox_units": "pdf_points_bottom_left_origin",
+      "field": "hourly_rate"
+    },
+    {
+      "document_id": "HH-003-D02",
+      "page": 1,
+      "bbox": [
+        340.0,
+        527.52,
+        393.38,
+        541.52
+      ],
+      "bbox_units": "pdf_points_bottom_left_origin",
+      "field": "gross_pay"
+    },
+    {
+      "document_id": "HH-003-D04",
+      "page": 1,
+      "bbox": [
+        40.0,
+        497.1,
+        90.6,
+        511.1
+      ],
+      "bbox_units": "pdf_points_bottom_left_origin",
+      "field": "monthly_benefit"
+    },
+    {
+      "document_id": "HH-003-D04",
+      "page": 1,
+      "bbox": [
+        280.0,
+        497.93,
+        315.01,
+        511.93
+      ],
+      "bbox_units": "pdf_points_bottom_left_origin",
+      "field": "benefit_frequency"
+    },
+    {
+      "rule_id": "HUD-MTSP-002",
+      "effective_date": "2026-05-01",
+      "source_url": "https://www.huduser.gov/portal/datasets/mtsp/mtsp26/HERA-Income-Limits-Report-FY26.pdf",
+      "source_locator": "FY 2026 MTSP table, household size 3, PDF page 130"
+    }
+  ],
+  "decision_boundary": "No eligibility determination is included."
+}

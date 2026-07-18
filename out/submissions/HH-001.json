@@ -1,0 +1,64 @@
+{
+  "household_id": "HH-001",
+  "annualized_income": 56316.0,
+  "comparison": "below_or_equal",
+  "readiness_status": "READY_TO_REVIEW",
+  "review_reasons": [],
+  "citations": [
+    {
+      "document_id": "HH-001-D02",
+      "page": 1,
+      "bbox": [
+        359.39,
+        606.77,
+        398.84,
+        620.77
+      ],
+      "bbox_units": "pdf_points_bottom_left_origin",
+      "field": "pay_frequency"
+    },
+    {
+      "document_id": "HH-001-D02",
+      "page": 1,
+      "bbox": [
+        50.6,
+        527.73,
+        74.6,
+        541.73
+      ],
+      "bbox_units": "pdf_points_bottom_left_origin",
+      "field": "regular_hours"
+    },
+    {
+      "document_id": "HH-001-D02",
+      "page": 1,
+      "bbox": [
+        188.86,
+        527.33,
+        221.93,
+        541.33
+      ],
+      "bbox_units": "pdf_points_bottom_left_origin",
+      "field": "hourly_rate"
+    },
+    {
+      "document_id": "HH-001-D02",
+      "page": 1,
+      "bbox": [
+        339.07,
+        527.33,
+        394.45,
+        541.33
+      ],
+      "bbox_units": "pdf_points_bottom_left_origin",
+      "field": "gross_pay"
+    },
+    {
+      "rule_id": "HUD-MTSP-002",
+      "effective_date": "2026-05-01",
+      "source_url": "https://www.huduser.gov/portal/datasets/mtsp/mtsp26/HERA-Income-Limits-Report-FY26.pdf",
+      "source_locator": "FY 2026 MTSP table, household size 1, PDF page 130"
+    }
+  ],
+  "decision_boundary": "No eligibility determination is included."
+}
