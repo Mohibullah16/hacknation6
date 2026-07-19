@@ -5,6 +5,8 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
+    // Allow serving through a Cloudflare quick tunnel (hackathon live demo).
+    allowedHosts: [".trycloudflare.com"],
     proxy: {
       "/api": "http://127.0.0.1:8000",
     },
