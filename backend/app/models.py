@@ -40,6 +40,9 @@ class DocumentExtraction:
     fields: list[FieldValue] = field(default_factory=list)
     adversarial_text_detected: bool = False
     adversarial_note: str = ""
+    # Optional LLM cross-check output (opt-in): advisory "double-check this
+    # value" notes only — never authoritative, never used in any computation.
+    advisory_flags: list[dict] = field(default_factory=list)
 
     def get(self, name: str) -> Optional[FieldValue]:
         for f in self.fields:

@@ -155,6 +155,18 @@ export default function Profile() {
                   instructions can never change how this tool behaves.
                 </p>
               )}
+              {(active.advisory_flags?.length ?? 0) > 0 && (
+                <div className="banner" role="note">
+                  <strong>🔍 AI cross-check suggests a second look (advisory only — nothing was changed):</strong>
+                  <ul style={{ margin: "0.3rem 0 0" }}>
+                    {active.advisory_flags!.map((f) => (
+                      <li key={f.field}>
+                        <strong>{f.field.replaceAll("_", " ")}</strong>: {f.note}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <div className="evidence-layout">
                 <div>
                   <table>

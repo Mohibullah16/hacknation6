@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { api, type AppConfig } from "../api";
 import { useSession } from "../context";
 
 const DATA_USES = [
@@ -22,7 +23,12 @@ export default function Landing() {
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [config, setConfig] = useState<AppConfig | null>(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    api.getConfig().then(setConfig).catch(() => setConfig(null));
+  }, []);
 
   async function begin() {
     setBusy(true);
@@ -54,6 +60,24 @@ export default function Landing() {
         extracted. Documents stay in this session's memory only, are never sent to a property or
         provider, are never used for training, and are erased when you delete the session.
       </div>
+
+      {config?.llm_assist_enabled ? (
+        <div className="banner warn" role="note">
+          <strong>AI-assisted explanations are on (OpenAI {config.llm_model}).</strong> Questions you
+          type in Step 2 may be sent to OpenAI to help match them to the right frozen rule and to add a
+          plain-language rephrasing beside the authoritative cited answer.{" "}
+          {config.llm_crosscheck_enabled
+            ? "The optional extraction cross-check is also on: extracted field values (from these synthetic documents) may be sent for advisory double-check notes. "
+            : "Your uploaded documents are never sent — only the questions you type. "}
+          Every number, threshold, and status still comes from the local deterministic engine; the AI
+          can never make or imply a decision, and OpenAI does not train on this API data.
+        </div>
+      ) : (
+        <div className="banner" role="note">
+          <strong>Fully local in this deployment.</strong> No third-party AI model is active: extraction,
+          rules answers, and every calculation run locally and deterministically on this machine.
+        </div>
+      )}
 
       <table>
         <caption>Every data use, explained before you start</caption>

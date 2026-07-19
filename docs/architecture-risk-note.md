@@ -24,9 +24,9 @@ React + Vite frontend (WCAG 2.2 AA)          FastAPI backend (Python 3.12)
 
 **Determinism.** All scored math is plain arithmetic: annualize(amount, frequency) with fixed multipliers, threshold lookup from the frozen MTSP table, string-free comparison. The organizer starter functions are used verbatim. No LLM output ever becomes a number, a threshold, or a status.
 
-**Model disclosure (per pack release-gate rule).** The submission as configured uses **no hosted model at all** — extraction, rules Q&A, and all calculations are local and deterministic (RapidOCR runs local ONNX weights, Apache-2.0). The architecture has an optional, disabled-by-default OpenAI assist hook (extraction cross-check + answer rephrasing) that can only lower confidence or rephrase already-cited rule text, never introduce values; enabling it would require disclosing OpenAI terms and retention at the session-consent screen.
+**Model disclosure (per pack release-gate rule; see also `docs/model-license-manifest.md`).** Every scored path — extraction, calculation, readiness, citations — is local and deterministic (RapidOCR runs local ONNX weights, Apache-2.0). An **optional OpenAI assist** activates only when an `OPENAI_API_KEY` is present and is disclosed on the consent screen. Its entire permitted surface is: (1) *routing* a free-text rules question to one of the vetted answer templates (the model picks an intent name from a fixed enum, validated server-side — it never authors answer text); (2) adding a *plain-language rephrasing* beside the authoritative cited answer, discarded unless it passes both the decision-language deny gate and a number-grounding check (no number may appear that is not already in the deterministic answer); and (3) an opt-in, off-by-default advisory extraction cross-check whose notes never change a value or a status. No LLM output ever becomes a number, a threshold, or a status. With no key, the app runs fully offline with identical scored behavior.
 
-**Human decision boundary.** The API cannot express an eligibility decision: the submission schema has no such field, refusal templates deflect "decide for me" requests to rule + confirmed input + calculation, and a decision-language output gate (regex deny-list) guards any generated text path.
+**Human decision boundary.** The API cannot express an eligibility decision: the submission schema has no such field, and refusal templates deflect "decide for me" requests to rule + confirmed input + calculation. Two classes of text are guarded differently, deliberately: vetted templates are safe **by construction** and shown verbatim (they legitimately quote "approval/denial" in negated context, so running the deny-list over them would break correct refusals); all **LLM-generated** text passes the decision-language deny-list plus number-grounding before display and falls back to the deterministic template on failure. Refusal and safety templates are never rephrased at all.
 
 ## Data flow & privacy
 
@@ -35,7 +35,8 @@ React + Vite frontend (WCAG 2.2 AA)          FastAPI backend (Python 3.12)
 - Audit log records events, field names, document ids, and rule-corpus version — never values or contents.
 - Export is an explicit renter-initiated local ZIP download; there is no send-to-property capability anywhere in the codebase.
 - Delete-session erases documents, bytes, results, and logs immediately; the UI confirms and announces it.
-- No training on uploads; no analytics; no third-party calls at runtime.
+- No training on uploads; no analytics. The only third-party call is the optional, consent-screen-disclosed OpenAI Q&A assist (typed questions only; documents are never sent unless the separate cross-check flag is explicitly opted into, and then only allowlisted synthetic field values). With no API key there are no third-party calls at all.
+- Prompt-injection resistance extends to the LLM path: question text and rule text are declared untrusted data in every prompt, the router's output is validated against a fixed intent enum, and rephrasings are gated + grounded — a hostile question can at worst select a different vetted template.
 
 ## Threat model & mitigations
 
@@ -48,7 +49,8 @@ React + Vite frontend (WCAG 2.2 AA)          FastAPI backend (Python 3.12)
 | Wrong-year limits | Only the frozen FY 2026 corpus is loadable; requests for 2025 limits are refused with citation | ADV-005/017 |
 | Uncited values | Traceability gate: uncited income ⇒ MISSING_CITATION ⇒ NEEDS_REVIEW; bbox validation rejects out-of-page boxes | ADV-006/018, ADV-010/022 |
 | Protected-trait inference | No such features exist (see feature manifest); Q&A refuses inference requests | ADV-009/021 |
-| Extraction error harming the renter | Calibrated confidence, abstention, mandatory renter confirm/correct before any downstream use; correction recomputes everything | acceptance demo step 2 |
+| Extraction error harming the renter | Extraction-path confidence signal (digital text 0.97 · OCR ≤0.85 scaled by OCR score · halved on parse failure), hard abstention below 0.60, mandatory renter confirm/correct before any downstream use; correction recomputes everything | acceptance demo step 2; `demo/demo_pay_stub_lowquality.pdf` abstention beat |
+| LLM assist overreach (hallucinated numbers or decisions) | Router constrained to a validated intent enum; rephrasings pass decision-language deny-list + number-grounding or are discarded; refusal/safety templates never rephrased; cross-check advisory-only and off by default | with-key manual tests in demo-script step 3 |
 | Stale/conflicting evidence slipping through | 60-day currency convention (labeled as simulation-only), component-vs-total reconciliation, gig corroboration check | ADV-007/008/012 |
 
 ## Known limitations
@@ -60,4 +62,6 @@ React + Vite frontend (WCAG 2.2 AA)          FastAPI backend (Python 3.12)
 
 ## Verification
 
-`python eval/run_eval.py` → 100.0% on extraction (159/159 gold fields incl. all rasterized docs), calculation (18/18), readiness (18/18), citations (24/24), the 24-test adversarial suite, and the 36 gold Q&A. `python eval/api_smoke.py` walks all six Required Acceptance Demo steps against the live API. See `docs/demo-script.md`.
+`python eval/run_eval.py` → 100.0% on **our local reproduction of the pack's checks**: extraction (159/159 gold fields incl. all rasterized docs), calculation (18/18), readiness (18/18), citations (24/24), a 24-test adversarial suite exercising each pack category, and the 36 gold Q&A. `python eval/api_smoke.py` walks all six Required Acceptance Demo steps against the live API. Both run fully offline (no `OPENAI_API_KEY`), which also proves the assist layer is strictly additive.
+
+To be precise about scope: this harness is our own reproduction, not the judges' scoring. The official judging rubric is Profile accuracy 25% · Rules & math 25% · Safety & privacy 20% · Accessibility 15% · End-to-end usefulness 15% — the accessibility and end-to-end criteria are judged live in the demo (see `docs/a11y.md` and `docs/demo-script.md`), not by this harness. See `docs/demo-script.md`.

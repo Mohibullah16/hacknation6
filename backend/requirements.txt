@@ -1,0 +1,12 @@
+# RealDoor backend — pip-only, no system binaries (OCR runs locally via ONNX).
+fastapi
+uvicorn[standard]
+pdfplumber
+pypdfium2
+rapidocr-onnxruntime
+python-multipart
+jsonschema
+httpx
+# Optional AI assist (app runs fully deterministic without a key; see docs/model-license-manifest.md)
+openai
+python-dotenv

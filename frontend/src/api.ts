@@ -20,6 +20,16 @@ export interface DocumentExtraction {
   fields: FieldValue[];
   adversarial_text_detected: boolean;
   adversarial_note: string;
+  /** Optional LLM cross-check output (opt-in): advisory notes only. */
+  advisory_flags?: { field: string; note: string }[];
+}
+
+export interface AppConfig {
+  llm_assist_enabled: boolean;
+  llm_explain_enabled: boolean;
+  llm_crosscheck_enabled: boolean;
+  llm_model: string | null;
+  rule_corpus_version: string;
 }
 
 export interface IncomeSource {
@@ -82,6 +92,10 @@ export interface QAAnswer {
   authority_label: string | null;
   abstained: boolean;
   refusal?: boolean;
+  /** True when the optional LLM routed the question to this vetted answer. */
+  assist_used?: boolean;
+  /** Gated + grounded LLM rephrasing shown beside the authoritative answer. */
+  plain_language?: string;
 }
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
@@ -100,6 +114,7 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  getConfig: () => req<AppConfig>("/api/config"),
   createSession: () =>
     req<{ session_id: string; rule_corpus_version: string }>("/api/session", {
       method: "POST",

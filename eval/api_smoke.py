@@ -12,6 +12,7 @@ Run from repo root:  python eval/api_smoke.py
 """
 from __future__ import annotations
 
+import os
 import sys
 import zipfile
 import io
@@ -19,6 +20,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
+
+# The harness always measures the deterministic engine, even when a key is
+# present in backend/.env (with-key behavior is covered by scripts/test_llm_assist.py).
+os.environ["REALDOOR_LLM_ASSIST"] = "0"
 
 from fastapi.testclient import TestClient  # noqa: E402
 

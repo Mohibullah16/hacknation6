@@ -6,7 +6,7 @@ import { useSession } from "../context";
 const SUGGESTED = [
   "What is the frozen 60% threshold for my household?",
   "What annualized income does the calculation use?",
-  "How does my amount compare with the frozen threshold?",
+  "Do I earn too much for this program?",
   "Is the 60-day currency rule an official universal LIHTC rule?",
   "Am I eligible?",
 ];
@@ -188,6 +188,31 @@ export default function Understand() {
         {qa && (
           <div className="qa-answer" role="region" aria-label="Answer with citations">
             <p style={{ marginTop: 0 }}>{qa.answer}</p>
+            {qa.abstained && (
+              <p style={{ color: "var(--muted)" }}>
+                Try one of the suggested questions above, or ask about your <strong>threshold</strong>,{" "}
+                <strong>annualized income</strong>, <strong>readiness status</strong>, or the program's{" "}
+                <strong>rules and dates</strong> — those are what the frozen corpus can answer with a citation.
+              </p>
+            )}
+            {qa.assist_used && (
+              <p>
+                <span className="chip neutral">
+                  🤖 AI-assisted routing — the answer and citation come from the frozen corpus, the AI
+                  only matched your wording to them
+                </span>
+              </p>
+            )}
+            {qa.plain_language && (
+              <div className="banner" role="note">
+                <strong>In plain language (AI-assisted):</strong> {qa.plain_language}
+                <br />
+                <span style={{ fontSize: "0.85rem", color: "var(--muted)" }}>
+                  Rephrased by OpenAI from the cited answer above; checked so it introduces no new
+                  numbers and no decision language. The cited answer is the authoritative one.
+                </span>
+              </div>
+            )}
             {qa.authority_label && (
               <p>
                 <span className={qa.authority_label.startsWith("Official") ? "chip ok" : "chip warn"}>

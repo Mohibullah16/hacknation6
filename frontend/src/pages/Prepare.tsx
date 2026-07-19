@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, type ReadinessResult } from "../api";
 import { useSession } from "../context";
@@ -19,6 +19,19 @@ export default function Prepare() {
   const [deleted, setDeleted] = useState("");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const navigate = useNavigate();
+  const deleteTriggerRef = useRef<HTMLButtonElement>(null);
+  const confirmDeleteRef = useRef<HTMLButtonElement>(null);
+
+  /* Dialog focus management (WCAG 2.4.3): entering the confirm dialog moves
+     focus to its first action; cancelling returns focus to the trigger. */
+  useEffect(() => {
+    if (confirmingDelete) confirmDeleteRef.current?.focus();
+  }, [confirmingDelete]);
+
+  function cancelDelete() {
+    setConfirmingDelete(false);
+    window.setTimeout(() => deleteTriggerRef.current?.focus(), 0);
+  }
 
   useEffect(() => {
     if (!sessionId) return;
@@ -191,19 +204,27 @@ export default function Prepare() {
           cannot be undone.
         </p>
         {!confirmingDelete ? (
-          <button className="danger" onClick={() => setConfirmingDelete(true)}>
+          <button ref={deleteTriggerRef} className="danger" onClick={() => setConfirmingDelete(true)}>
             Delete my session and all data
           </button>
         ) : (
-          <div role="alertdialog" aria-labelledby="del-title" aria-describedby="del-desc" className="banner alert">
+          <div
+            role="alertdialog"
+            aria-labelledby="del-title"
+            aria-describedby="del-desc"
+            className="banner alert"
+            onKeyDown={(e) => {
+              if (e.key === "Escape") cancelDelete();
+            }}
+          >
             <p id="del-title" style={{ marginTop: 0 }}>
               <strong>Delete everything?</strong>
             </p>
             <p id="del-desc">All session data will be erased from memory. Download your packet first if you want to keep it.</p>
-            <button className="danger" onClick={onDelete}>
+            <button ref={confirmDeleteRef} className="danger" onClick={onDelete}>
               Yes, delete everything
             </button>{" "}
-            <button className="secondary" onClick={() => setConfirmingDelete(false)}>
+            <button className="secondary" onClick={cancelDelete}>
               Cancel
             </button>
           </div>

@@ -39,13 +39,24 @@ export default function App() {
       {sessionId && (
         <nav className="stepper" aria-label="Application readiness steps">
           <ol>
-            {STEPS.map((s) => (
-              <li key={s.path}>
-                <NavLink to={s.path} aria-current={location.pathname === s.path ? "page" : undefined}>
-                  {s.label}
-                </NavLink>
-              </li>
-            ))}
+            {STEPS.map((s, i) => {
+              const currentIdx = STEPS.findIndex((x) => x.path === location.pathname);
+              // Steps 1-3 are linear; earlier ones get a visual ✓ (Discover is
+              // optional and never marks progress).
+              const done = currentIdx >= 0 && currentIdx < 3 && i < currentIdx;
+              return (
+                <li key={s.path}>
+                  <NavLink
+                    to={s.path}
+                    className={done ? "done" : undefined}
+                    aria-current={location.pathname === s.path ? "page" : undefined}
+                  >
+                    {done && <span className="visually-hidden">(visited) </span>}
+                    {s.label}
+                  </NavLink>
+                </li>
+              );
+            })}
           </ol>
         </nav>
       )}

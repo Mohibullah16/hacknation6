@@ -1,52 +1,60 @@
 # RealDoor — Session Handoff / Build State
 
-_Last updated: 2026-07-19 (after Phase 4, API layer). If a new Claude session picks this up: read this file, `C:\Users\mohib\.claude\plans\ok-so-the-doc-idempotent-crescent.md` (full plan), and run the two eval commands below before changing anything._
+_Last updated: 2026-07-19 (correction + OpenAI-assist build **COMPLETE and verified**). If a new Claude session picks this up: read this file, then `C:\Users\mohib\.claude\plans\build-plan-for-all-pure-summit.md` (the executed plan, full rationale). Run the verify commands below before changing anything._
 
-## Where things stand
+## Where things stand — everything code-side is DONE
 
-| Phase | Status |
+| Work | Status |
 |---|---|
-| 1. Scaffold, pack data, deps | ✅ done |
-| 2. Extraction engine (text-layer + OCR) | ✅ done — 159/159 gold fields |
-| 3. Calc + readiness + citations + submissions | ✅ done — all gold checklists reproduced |
-| 4. FastAPI + session/privacy/safety + smoke test | ✅ done — `eval/api_smoke.py` all-pass |
-| 5. Frontend (React+Vite, WCAG 2.2 AA) | ✅ done — builds clean, dev servers verified end-to-end |
-| 6. Packet/Discover UI | ✅ done (Prepare + Discover pages) |
-| 7. Docs + demo script + final eval | ✅ done — **only the demo video recording remains (user task, see docs/demo-script.md)** |
+| Original build (extraction/calc/readiness/rules/safety/privacy/frontend/docs) | ✅ |
+| Rubric-review corrections (A1 gate wiring truthful, A2 abstention demonstrable + honest confidence wording, A3 "100%" reframed as local reproduction, A4 paraphrase intents, A5 dialog focus + .done stepper + dead-code) | ✅ |
+| OpenAI assist (route → vetted intents · gated+grounded plain_language · opt-in advisory crosscheck) | ✅ code complete |
+| Disclosure: `GET /api/config`, consent-screen banner, Understand badges, `docs/model-license-manifest.md` (required deliverable) | ✅ |
+| Degraded demo doc `demo/demo_pay_stub_lowquality.pdf` (hourly_rate abstains at 0.485; regenerate/verify via `python scripts/make_demo_doc.py`) | ✅ |
+| `backend/requirements.txt` (incl. `openai`, installed: 1.109.1) | ✅ |
+| **Verified offline:** `run_eval.py` 100.00% all sections · `api_smoke.py` ALL PASS · `/api/config` all-false with no key · QA carries `assist_used=False` · `npm run build` clean (pre-existing pdfjs chunk-size warning only) | ✅ |
+
+## What remains (user tasks)
+
+1. ~~With-key verification~~ ✅ **DONE** — user's key is in `backend/.env` (gitignored; loaded via python-dotenv; template at `.env.example`) with `OPENAI_MODEL=gpt-5.4-nano`; `python scripts/test_llm_assist.py` → **LLM assist: ALL PASS** (paraphrase routing to correct rules, grounded plain_language, hostile prompts deflected).
+2. **Rehearse + record the demo video** per `docs/demo-script.md` — now includes the abstention beat (step 1) and the AI beat (step 3, key required).
+3. `git add -A; git commit` and publish the repo (`.env` is ignored; double-check with `git status`).
+
+## LLM API gotchas (learned with-key)
+
+- gpt-5.x family rejects `max_tokens` (use `max_completion_tokens`) and non-default temperature — `_chat_json` in `llm/assist.py` uses `max_completion_tokens=2000`, no temperature (reasoning models spend completion budget on reasoning; outputs are gated anyway, determinism not needed).
+- Both eval harnesses force `REALDOOR_LLM_ASSIST=0` before importing the app, so they always measure the deterministic engine even with a key in `.env` (re-verified: run_eval 100.00%, api_smoke ALL PASS with key present).
 
 ## Verify current state (run from `realdoor/`)
 
 ```
-python eval/run_eval.py    # must print WEIGHTED TOTAL 100.00%
-python eval/api_smoke.py   # must print "API smoke: ALL PASS"
+python eval/run_eval.py       # WEIGHTED TOTAL 100.00%
+python eval/api_smoke.py      # API smoke: ALL PASS
+python scripts/make_demo_doc.py   # OK: hourly_rate abstains...
+cd frontend; npm run build    # ✓ built
 ```
 
-Deps (already installed via `pip install --user`): fastapi uvicorn[standard] pdfplumber pypdfium2 rapidocr-onnxruntime python-multipart jsonschema httpx. Python 3.12.10, Node 24.11.
-
-Run the API: `cd backend; python -m uvicorn app.main:app --reload --port 8000`
+All four pass as of this handoff (no `OPENAI_API_KEY` set — that's the offline-identical guarantee).
 
 ## Architecture map (backend)
 
-- `backend/app/config.py` — frozen constants, field allowlist, paths, 60-day convention.
-- `backend/app/extraction/` — `textlayer.py` (pdfplumber, watermark chars filtered by size≥20), `ocr.py` (pypdfium2 render ×3 + RapidOCR, pixel→point mapping, watermark boxes dropped by height>24pt), `labeling.py` (label-anchor extraction, concatenation-tolerant because OCR merges words like 'PAYPERIOD'; bbox padded to min 24×14pt to match gold), `parse.py` (typed normalizers; camel/digit re-spacing for OCR'd names/addresses), `pipeline.py` (routing, allowlist, abstention <0.6 confidence, injection detection).
-- `backend/app/calc/engine.py` — income model: **latest pay stub only** (stubs are consecutive periods, never summed; falls back to older stub if newest unusable), components (hours×rate) authoritative over displayed gross (conflict → flag), benefit monthly×12, gig gross_receipts×12 uncorroborated flag, application_summary NEVER income (unsigned claim). Reuses `starter_calculate.py` verbatim.
-- `backend/app/readiness/engine.py` — reason codes drive NEEDS_REVIEW: PAY_STUB_TOTAL_CONFLICT, {TYPE}_EXPIRED (60d before 2026-07-18), GIG_INCOME_UNCORROBORATED, HOUSEHOLD_SIZE_OUT_OF_TABLE, MISSING_CITATION, NO_INCOME_EVIDENCE, UNCONFIRMED_EVIDENCE. **Missing docs are informational gaps, never status gates** (gold: HH-003/006 READY despite missing employment letter).
-- `backend/app/rules/corpus.py` — 11-rule frozen corpus, MTSP lookup, intent-routed Q&A (36/36 gold). Order matters: safety intents → compare/annualized (session) → threshold → factual → keyword fallback → abstain.
-- `backend/app/safety/guards.py` — injection patterns, decision-language gate (`enforce_no_decision_language` — for LLM text only; templates are pre-vetted and deliberately mention 'approval' in negated context, don't gate them), `validate_bbox`.
-- `backend/app/privacy/store.py` — in-memory sessions, TTL 4h, audit log (never raw values), hard delete. `packet.py` — preview JSON + printable HTML + export ZIP.
-- `backend/app/main.py` — endpoints: POST /api/session (consent gate) · POST .../documents (upload→extract) · PATCH .../fields/{f} (confirm|correct → recompute) · POST .../confirm-all · GET .../calculation (blocked until all fields confirmed) · POST .../qa · GET .../packet + /packet/export (ZIP) · GET .../audit · DELETE session · GET /api/rules · GET /api/properties (Discover: availability always "unknown", 32 rows unfiltered).
+- `config.py` — frozen constants + field allowlist + LLM env flags at bottom (`LLM_ASSIST/EXPLAIN` on-with-key; `LLM_CROSSCHECK` opt-in via `REALDOOR_LLM_CROSSCHECK=1`).
+- `extraction/` — textlayer (pdfplumber, watermark chars ≥20pt filtered) · ocr (pypdfium2×3 + RapidOCR) · labeling (label-anchor, concat-tolerant, bbox min 24×14) · parse (typed normalizers) · pipeline (allowlist, abstain <0.60, injection detect).
+- `calc/engine.py` — latest-stub-only wages, components beat displayed gross, benefits ×freq, gig ×12, application summary never income.
+- `readiness/engine.py` — reason codes drive NEEDS_REVIEW; missing docs = informational gaps only.
+- `rules/corpus.py` — **intent registry**: `_intent_*` builders, `INTENT_BUILDERS`, `INTENT_DESCRIPTIONS` (the LLM router's enum incl. "abstain"), `build_intent_answer`. Keyword router `answer_question` dispatches into the same builders. **Answer strings are load-bearing** — gold Q&A string-matches them; never reword.
+- `llm/assist.py` — OpenAI (user's explicit choice over Claude). `route_question` (JSON mode, enum-validated), `plain_language` (deny-gate + `_grounded` number check, None on failure), `crosscheck_fields` (advisory, gated). Lazy client, 12s timeout, temperature 0; graceful degrade if package/key missing.
+- `safety/guards.py` — injection patterns; `enforce_no_decision_language` applies to LLM text only (templates vetted by construction — docstring explains why).
+- `privacy/` — in-memory store TTL 4h, audit (no values), packet ZIP.
+- `main.py` — endpoints as before + `GET /api/config`. `rules_qa`: keyword router → (if abstained + enabled) LLM route → vetted builder → optional `plain_language` (never for refusals or CH-DECISION/CH-SAFETY citations). Upload attaches `advisory_flags` only when crosscheck opted in.
 
-## What remains (in order)
+## Frontend map
 
-1. **Frontend** (`frontend/`, not yet created): `npm create vite@latest frontend -- --template react-ts`. Pages: Consent/landing → Profile (upload, field table w/ confidence chips + confirm/correct, pdf.js evidence viewer with bbox overlays — convert bottom-left-origin points to top-left CSS: `top = (792 - y2) * scale`) → Understand (calc card: value/threshold/formula/rule/effective date + Q&A panel) → Prepare (gaps, packet preview, export ZIP button, delete-session button) → Discover (table of 32 properties, availability column always "Unknown", renter-chosen filters only, always show unfiltered count). 
-   A11y (15% of judge rubric!): skip link, semantic landmarks, single h1 per page, visible focus ring, aria-live="polite" status region for extract/recompute/export/delete announcements, labels + aria-describedby errors, icon+text status (no color-only), keyboard-complete, contrast ≥4.5:1, target ≥24px.
-2. **Docs** (`docs/`): architecture-risk-note.md (required deliverable), feature-manifest.md (every feature + purpose — "no hidden proxies" requirement), a11y.md (WCAG checklist + how verified), demo-script.md (map 1:1 to the 6 Required Acceptance Demo steps in the challenge PDF).
-3. **README.md** — setup, run, eval, screenshot.
-4. **Demo video** — follow demo-script.md.
-5. Final `git commit`; re-run both evals last.
+`api.ts` (types + `getConfig`) · `Landing.tsx` (AI disclosure banner pre-consent) · `Profile.tsx` (advisory chips; abstained chip = the demo doc beat) · `Understand.tsx` (assist chip + plain-language panel; suggested Q includes the paraphrase "Do I earn too much for this program?" which also routes offline via keywords) · `Prepare.tsx` (alertdialog focus in/Escape/return) · `App.tsx` (.done stepper for visited steps 1-3).
 
-## Scoring context (why decisions look like they do)
+## Gotchas for future changes
 
-- Judge rubric: Profile 25 / Rules&math 25 / Safety 20 / **Accessibility 15** / End-to-end 15. Auto-lose: any approve/deny/score/rank/suppress output.
-- Pack eval: extraction 35 / calc 25 / readiness 20 / citations 10 / adversarial 10; hidden tests perturb values but keep schemas → nothing hardcoded.
-- The 6-step Required Acceptance Demo (challenge PDF p.2) is fully covered by `eval/api_smoke.py` at API level; the frontend must make each step clickable.
+- `api_smoke.py` globs `hh-005_*.pdf` and asserts exactly 4 docs → demo assets stay in `demo/`, never pack documents dir.
+- Demo doc: pay_date 2026-06-13 is deliberate (older than D02 2026-06-27 → excluded by latest-stub rule; newer than cutoff 2026-05-19 → no EXPIRED flag); values consistent 68×26=1768 so no conflict after correction.
+- Never claim "100%" as a challenge score — it's our local reproduction (docs already worded this way; keep it).
+- Judge rubric: Profile 25 / Rules&math 25 / Safety 20 / Accessibility 15 / E2E 15. Auto-lose: approve/deny/score/rank/suppress.

@@ -20,14 +20,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from pydantic import BaseModel
 
-from .config import FIELD_ALLOWLIST, LIHTC_CSV_PATH, RULE_CORPUS_VERSION
+from .config import FIELD_ALLOWLIST, LIHTC_CSV_PATH, OPENAI_MODEL, RULE_CORPUS_VERSION
 from .extraction.parse import parse_field
 from .extraction.pipeline import extract_document
 from .household import build_household_result
+from .llm import assist
 from .privacy.packet import build_export_zip, packet_preview
 from .privacy.store import STORE
-from .rules.corpus import RULES, answer_question
-from .safety.guards import enforce_no_decision_language
+from .rules.corpus import RULES, answer_question, build_intent_answer
 
 app = FastAPI(title="RealDoor — Application-Readiness Copilot", version="1.0")
 
@@ -79,8 +79,6 @@ def _recompute(s) -> None:
     from .household import household_size_from_documents
 
     s.household_size = household_size_from_documents(gated_docs)
-    if s.household_size is None and gated_docs:
-        s.household_size = None
     calc, readiness, submission = build_household_result(
         s.household_id or "SESSION", gated_docs, s.household_size
     )
@@ -95,6 +93,20 @@ def _unconfirmed_fields(s) -> list[dict]:
             if f.status in ("extracted", "abstained"):
                 out.append({"document_id": doc.document_id, "field": f.field, "status": f.status})
     return out
+
+
+@app.get("/api/config")
+def get_config():
+    """Truthful disclosure for the consent screen: whether the optional OpenAI
+    assist is active in this deployment, and which model it would use."""
+    enabled = assist.assist_enabled()
+    return {
+        "llm_assist_enabled": enabled,
+        "llm_explain_enabled": assist.explain_enabled(),
+        "llm_crosscheck_enabled": assist.crosscheck_enabled(),
+        "llm_model": OPENAI_MODEL if enabled else None,
+        "rule_corpus_version": RULE_CORPUS_VERSION,
+    }
 
 
 @app.post("/api/session")
@@ -134,6 +146,12 @@ async def upload_document(sid: str, file: UploadFile):
         tmp_path.write_bytes(data)
         doc = extract_document(tmp_path, fallback_document_id=Path(file.filename).stem)
     doc.file_name = file.filename
+    if assist.crosscheck_enabled():
+        # Advisory only (opt-in): notes for the renter to double-check; never
+        # changes a value, a status, or the calculation.
+        doc.advisory_flags = assist.crosscheck_fields(
+            doc.document_type, [{"field": f.field, "value": f.value} for f in doc.fields]
+        )
     s.documents[doc.document_id] = doc
     s.files[doc.document_id] = data
     if doc.household_id and not s.household_id:
@@ -226,13 +244,46 @@ def get_calculation(sid: str):
     }
 
 
+# Safety/refusal templates are shown verbatim — never rephrased by the LLM.
+_NO_REPHRASE_RULE_IDS = {"CH-DECISION-001", "CH-SAFETY-001"}
+
+
 @app.post("/api/session/{sid}/qa")
 def rules_qa(sid: str, body: QABody):
+    """Q&A pipeline: deterministic keyword router first (always). If it
+    abstains and the optional OpenAI assist is enabled, the LLM may only
+    *classify* the question into a vetted intent — the answer text and citation
+    still come from the deterministic builders. LLM-generated text appears
+    solely in the supplementary `plain_language` field, which is discarded
+    unless it passes the decision-language gate and number-grounding check
+    (both enforced inside `assist.plain_language`)."""
     s = _session(sid)
     ans = answer_question(body.question, s)
-    safe_text, blocked = enforce_no_decision_language(ans["answer"]) if ans.get("abstained") else (ans["answer"], False)
-    ans["answer"] = safe_text
-    s.log("rules_question_answered", f"cited={[c.get('rule_id') for c in ans['citations']]} abstained={ans.get('abstained')}")
+    ans["assist_used"] = False
+
+    if ans.get("abstained") and assist.assist_enabled():
+        intent = assist.route_question(body.question)
+        routed = build_intent_answer(intent, s) if intent else None
+        if routed is not None:
+            ans = routed
+            ans["assist_used"] = True
+
+    cited_ids = {c.get("rule_id") for c in ans["citations"]}
+    if (
+        assist.explain_enabled()
+        and not ans.get("abstained")
+        and not ans.get("refusal")
+        and not (cited_ids & _NO_REPHRASE_RULE_IDS)
+    ):
+        plain = assist.plain_language(body.question, ans["answer"], ans["citations"])
+        if plain:
+            ans["plain_language"] = plain
+
+    s.log(
+        "rules_question_answered",
+        f"cited={sorted(str(c) for c in cited_ids)} abstained={ans.get('abstained')} "
+        f"assist_used={ans.get('assist_used')}",
+    )
     return ans
 
 

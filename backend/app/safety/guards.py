@@ -4,9 +4,14 @@ Design:
 - Document text is DATA. It is never concatenated into any prompt as
   instructions, and instruction-like content inside documents is detected,
   flagged to the renter, and ignored.
-- Every user-facing generated string passes `enforce_no_decision_language`
-  before leaving the API. Pre-vetted templates are exempt by construction;
-  LLM output never is.
+- Two classes of user-facing text, gated differently and deliberately:
+  * Vetted templates (everything in `rules.corpus`) are safe BY CONSTRUCTION
+    and are shown verbatim. They legitimately quote decision vocabulary in
+    negated context ("never determines ... approval, denial"), so running the
+    deny-list over them would destroy correct refusals — they are exempt.
+  * LLM-generated text (the optional assist's `plain_language` rephrasings and
+    `crosscheck` notes) is ALWAYS passed through `enforce_no_decision_language`
+    (plus a number-grounding check) before display, and discarded on failure.
 """
 from __future__ import annotations
 
@@ -23,8 +28,10 @@ INJECTION_PATTERNS = [
     re.compile(r"act\s+as\b.*\b(admin|root|developer)", re.I),
 ]
 
-# Decision language that must never appear in tool-generated conclusions
-# (CH-DECISION-001). Checked on generated/LLM text before display.
+# Decision language that must never appear in LLM-generated text
+# (CH-DECISION-001). Applied to every plain_language rephrasing and every
+# cross-check note before display — never to vetted templates (see module
+# docstring for why).
 DECISION_PATTERNS = re.compile(
     r"\b(eligible|ineligible|eligibility\s+(is|granted|confirmed)|approved?|approval|"
     r"den(?:y|ied|ial)|reject(?:ed|ion)?|qualif(?:y|ies|ied)|disqualif\w*|"

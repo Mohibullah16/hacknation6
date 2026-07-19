@@ -28,8 +28,18 @@ _Published per the challenge's "No hidden proxies" requirement: every feature th
 | annualized_income | Sum of independently documented recurring gross sources |
 | comparison (below_or_equal / above / no_frozen_threshold) | Numerical relation to the frozen threshold — explicitly **not** an eligibility conclusion |
 | readiness_status + reason codes | Tells a **human reviewer** whether the packet is complete/consistent; missing docs are informational gaps, not automatic blockers |
-| confidence per field | Drives abstention (<0.60) and the renter-confirmation UI |
+| confidence per field | Extraction-path signal (digital text 0.97 · OCR ≤0.85 scaled by OCR score · halved when the value fails its type parser) — not a calibrated probability. Drives hard abstention (<0.60) and the renter-confirmation UI |
 | adversarial_text_detected | Warns the renter that embedded instructions were found and ignored |
+
+## Optional OpenAI assist (disclosed at consent; inactive without an API key)
+
+| Data sent to OpenAI | When | Sole purpose |
+|---|---|---|
+| The renter's typed rules question | Only when the deterministic keyword router abstains | Classify the question into one vetted intent from a fixed enum (validated server-side); the answer text and citation always come from the local frozen corpus |
+| The deterministic answer + its citation + the question | After a factual (never refusal/safety) answer | Produce a plain-language rephrasing shown *beside* the authoritative answer; discarded unless it passes the decision-language deny gate and introduces no new numbers |
+| Allowlisted extracted field names/values (synthetic documents) | **Only** with the separate opt-in cross-check flag (off by default) | Advisory "double-check this value" notes; never changes a value, a status, or the calculation |
+
+Nothing else is ever sent: no documents, no full document text, and no identity data beyond what appears in a typed question or — with the opt-in flag only — the allowlisted field values in the table above. OpenAI does not train on API data. No LLM output can become a number, threshold, status, or decision.
 
 ## Discover (stretch) — property display fields
 
