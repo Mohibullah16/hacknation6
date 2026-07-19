@@ -1,0 +1,68 @@
+[
+  {
+    "page": "/ (landing)",
+    "violations": [],
+    "passes": 46,
+    "incomplete": []
+  },
+  {
+    "page": "/profile (empty)",
+    "violations": [],
+    "passes": 39,
+    "incomplete": []
+  },
+  {
+    "page": "/profile (document uploaded)",
+    "violations": [],
+    "passes": 48,
+    "incomplete": []
+  },
+  {
+    "page": "/profile (evidence zoomed)",
+    "violations": [],
+    "passes": 49,
+    "incomplete": []
+  },
+  {
+    "page": "/profile (all confirmed)",
+    "violations": [],
+    "passes": 50,
+    "incomplete": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": 10
+      }
+    ]
+  },
+  {
+    "page": "/understand (calc + answer)",
+    "violations": [],
+    "passes": 48,
+    "incomplete": []
+  },
+  {
+    "page": "/prepare",
+    "violations": [],
+    "passes": 40,
+    "incomplete": []
+  },
+  {
+    "page": "/prepare (delete dialog open)",
+    "violations": [],
+    "passes": 41,
+    "incomplete": []
+  },
+  {
+    "page": "/discover",
+    "violations": [],
+    "passes": 46,
+    "incomplete": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": 32
+      }
+    ]
+  }
+]

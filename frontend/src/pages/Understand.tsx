@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, type CalcResult, type QAAnswer, type ReadinessResult } from "../api";
 import { useSession } from "../context";
@@ -20,6 +20,14 @@ export default function Understand() {
   const [qa, setQa] = useState<QAAnswer | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const answerRef = useRef<HTMLDivElement>(null);
+
+  /* Asking disables the button that was pressed, which would drop keyboard
+     focus to <body>; landing on the answer region instead keeps the user on
+     the result (WCAG 2.4.3). */
+  useEffect(() => {
+    if (qa) answerRef.current?.focus();
+  }, [qa]);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -48,6 +56,7 @@ export default function Understand() {
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Question failed.";
       setError(msg);
+      document.getElementById("qa-input")?.focus();
       announce(`Error: ${msg}`);
     } finally {
       setBusy(false);
@@ -124,10 +133,25 @@ export default function Understand() {
           </p>
           <p>
             <strong>Comparison:</strong>{" "}
+            {/* Leading symbols are visual only — hidden from screen readers,
+                which would otherwise speak "less-than or equal to", "black
+                up-pointing triangle", etc. */}
             <span className={calc.comparison === "above" ? "chip warn" : "chip neutral"}>
-              {calc.comparison === "below_or_equal" && "≤ at or below the frozen threshold"}
-              {calc.comparison === "above" && "▲ above the frozen threshold"}
-              {calc.comparison === "no_frozen_threshold" && "✋ no frozen threshold for this size"}
+              {calc.comparison === "below_or_equal" && (
+                <>
+                  <span aria-hidden="true">≤ </span>at or below the frozen threshold
+                </>
+              )}
+              {calc.comparison === "above" && (
+                <>
+                  <span aria-hidden="true">▲ </span>above the frozen threshold
+                </>
+              )}
+              {calc.comparison === "no_frozen_threshold" && (
+                <>
+                  <span aria-hidden="true">✋ </span>no frozen threshold for this size
+                </>
+              )}
             </span>{" "}
             — a numerical comparison only. Only the housing program's human reviewer can determine what it
             means for your application.
@@ -136,9 +160,13 @@ export default function Understand() {
             <p role="status">
               Readiness signal:{" "}
               {readiness.readiness_status === "READY_TO_REVIEW" ? (
-                <span className="chip ok">✓ READY_TO_REVIEW — packet looks complete for human review</span>
+                <span className="chip ok">
+                  <span aria-hidden="true">✓ </span>READY_TO_REVIEW — packet looks complete for human review
+                </span>
               ) : (
-                <span className="chip warn">⚠ NEEDS_REVIEW — see reasons in Step 3</span>
+                <span className="chip warn">
+                  <span aria-hidden="true">⚠ </span>NEEDS_REVIEW — see reasons in Step 3
+                </span>
               )}
             </p>
           )}
@@ -186,7 +214,7 @@ export default function Understand() {
           ))}
         </p>
         {qa && (
-          <div className="qa-answer" role="region" aria-label="Answer with citations">
+          <div ref={answerRef} tabIndex={-1} className="qa-answer" role="region" aria-label="Answer with citations">
             <p style={{ marginTop: 0 }}>{qa.answer}</p>
             {qa.abstained && (
               <p style={{ color: "var(--muted)" }}>
@@ -198,7 +226,7 @@ export default function Understand() {
             {qa.assist_used && (
               <p>
                 <span className="chip neutral">
-                  🤖 AI-assisted routing — the answer and citation come from the frozen corpus, the AI
+                  <span aria-hidden="true">🤖 </span>AI-assisted routing — the answer and citation come from the frozen corpus, the AI
                   only matched your wording to them
                 </span>
               </p>

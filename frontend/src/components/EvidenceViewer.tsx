@@ -104,7 +104,18 @@ export default function EvidenceViewer({ fileUrl, documentId, fields, focusField
           listed in the table.
         </p>
       ) : (
-        <div ref={stageRef} className={`pdf-stage${focused ? " zoomed" : ""}`}>
+        <div
+          ref={stageRef}
+          className={`pdf-stage${focused ? " zoomed" : ""}`}
+          /* Scrollable region must be keyboard-operable (WCAG 2.1.1) —
+             browsers don't consistently make overflow containers focusable.
+             axe's scrollable-region-focusable rule requires this tabindex;
+             the jsx-a11y rule below doesn't model scroll containers. */
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+          tabIndex={0}
+          role="region"
+          aria-label={`Scrollable preview of ${documentId}; use arrow keys to pan when zoomed`}
+        >
           <canvas
             ref={canvasRef}
             role="img"

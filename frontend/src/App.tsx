@@ -20,8 +20,14 @@ export default function App() {
   const mainRef = useRef<HTMLElement>(null);
 
   /* Move focus to main on route change so keyboard/SR users land on the new
-     page content (focus management, WCAG 2.4.3). */
+     page content (focus management, WCAG 2.4.3). Skipped on initial load so
+     the document keeps its natural start and the skip link stays first. */
+  const isFirstRender = useRef(true);
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     mainRef.current?.focus();
   }, [location.pathname]);
 

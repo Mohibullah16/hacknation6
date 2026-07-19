@@ -116,13 +116,17 @@ export default function Discover() {
                 {p.two_bedroom_units}/{p.three_bedroom_units}/{p.four_bedroom_units}
               </td>
               <td>
-                <span className="chip neutral">? Unknown — not a vacancy feed</span>
+                <span className="chip neutral">Unknown — not a vacancy feed</span>
               </td>
               <td>
                 {p.geocode_precision_code === "R" || p.geocode_precision_code === "4" ? (
-                  <span className="chip ok">✓ address-level</span>
+                  <span className="chip ok">
+                    <span aria-hidden="true">✓ </span>address-level
+                  </span>
                 ) : (
-                  <span className="chip warn">≈ approximate area only</span>
+                  <span className="chip warn">
+                    <span aria-hidden="true">≈ </span>approximate area only
+                  </span>
                 )}
               </td>
             </tr>

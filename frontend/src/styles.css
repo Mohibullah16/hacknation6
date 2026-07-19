@@ -89,7 +89,10 @@ nav.stepper a[aria-current="page"] {
   border-color: var(--primary);
   font-weight: 600;
 }
-nav.stepper a.done::before { content: "✓ "; }
+/* The check is visual only — the link already carries a visually-hidden
+   "(visited)" label, so silence the generated content for screen readers
+   (alt-text syntax; first line is the fallback for older browsers). */
+nav.stepper a.done::before { content: "✓ "; content: "✓ " / ""; }
 
 main {
   max-width: 72rem;
@@ -149,6 +152,9 @@ button:disabled {
 }
 
 label { font-weight: 600; display: block; margin-bottom: 0.2rem; }
+
+/* Placeholder text at ≥4.5:1 (browsers default to a too-light gray) */
+::placeholder { color: var(--muted); opacity: 1; }
 
 input[type="text"], input[type="file"], textarea {
   font: inherit;

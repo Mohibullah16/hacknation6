@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { api, type ReadinessResult } from "../api";
 import { useSession } from "../context";
 
@@ -18,15 +18,22 @@ export default function Prepare() {
   const [error, setError] = useState("");
   const [deleted, setDeleted] = useState("");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const navigate = useNavigate();
   const deleteTriggerRef = useRef<HTMLButtonElement>(null);
   const confirmDeleteRef = useRef<HTMLButtonElement>(null);
+  const cancelDeleteRef = useRef<HTMLButtonElement>(null);
+  const deletedHeadingRef = useRef<HTMLHeadingElement>(null);
 
   /* Dialog focus management (WCAG 2.4.3): entering the confirm dialog moves
      focus to its first action; cancelling returns focus to the trigger. */
   useEffect(() => {
     if (confirmingDelete) confirmDeleteRef.current?.focus();
   }, [confirmingDelete]);
+
+  /* The delete confirmation view unmounts the button that was pressed; land
+     the keyboard on the result heading instead of dropping focus to <body>. */
+  useEffect(() => {
+    if (deleted) deletedHeadingRef.current?.focus();
+  }, [deleted]);
 
   function cancelDelete() {
     setConfirmingDelete(false);
@@ -49,7 +56,6 @@ export default function Prepare() {
       setDeleted(r.message);
       announce(`Session deleted. ${r.message}`);
       clear();
-      window.setTimeout(() => navigate("/"), 4000);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Delete failed.";
       setError(msg);
@@ -60,10 +66,12 @@ export default function Prepare() {
   if (deleted) {
     return (
       <>
-        <h1>Session deleted</h1>
+        <h1 ref={deletedHeadingRef} tabIndex={-1}>
+          Session deleted
+        </h1>
         <p className="banner" role="status">
-          ✓ {deleted} You will be returned to the start page shortly, or{" "}
-          <Link to="/">go there now</Link>.
+          <span aria-hidden="true">✓ </span>
+          {deleted} <Link to="/">Return to the start page</Link> whenever you're ready.
         </p>
       </>
     );
@@ -105,9 +113,13 @@ export default function Prepare() {
             </h2>
             <p role="status">
               {readiness.readiness_status === "READY_TO_REVIEW" ? (
-                <span className="chip ok">✓ READY_TO_REVIEW</span>
+                <span className="chip ok">
+                  <span aria-hidden="true">✓ </span>READY_TO_REVIEW
+                </span>
               ) : (
-                <span className="chip warn">⚠ NEEDS_REVIEW</span>
+                <span className="chip warn">
+                  <span aria-hidden="true">⚠ </span>NEEDS_REVIEW
+                </span>
               )}{" "}
               — a document-readiness signal for a qualified human reviewer, never an eligibility decision.
             </p>
@@ -208,6 +220,9 @@ export default function Prepare() {
             Delete my session and all data
           </button>
         ) : (
+          /* Escape + Tab-trap on the dialog container is the WAI-ARIA modal
+             dialog pattern; jsx-a11y treats alertdialog as non-interactive. */
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
           <div
             role="alertdialog"
             aria-labelledby="del-title"
@@ -215,6 +230,17 @@ export default function Prepare() {
             className="banner alert"
             onKeyDown={(e) => {
               if (e.key === "Escape") cancelDelete();
+              /* Keep Tab inside the alertdialog (modal semantics): cycle
+                 between its two actions until the user chooses or cancels. */
+              if (e.key === "Tab") {
+                if (e.shiftKey && document.activeElement === confirmDeleteRef.current) {
+                  e.preventDefault();
+                  cancelDeleteRef.current?.focus();
+                } else if (!e.shiftKey && document.activeElement === cancelDeleteRef.current) {
+                  e.preventDefault();
+                  confirmDeleteRef.current?.focus();
+                }
+              }
             }}
           >
             <p id="del-title" style={{ marginTop: 0 }}>
@@ -224,7 +250,7 @@ export default function Prepare() {
             <button ref={confirmDeleteRef} className="danger" onClick={onDelete}>
               Yes, delete everything
             </button>{" "}
-            <button className="secondary" onClick={cancelDelete}>
+            <button ref={cancelDeleteRef} className="secondary" onClick={cancelDelete}>
               Cancel
             </button>
           </div>

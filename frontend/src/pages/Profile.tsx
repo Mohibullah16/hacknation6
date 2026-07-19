@@ -1,13 +1,31 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, type DocumentExtraction, type FieldValue } from "../api";
 import EvidenceViewer from "../components/EvidenceViewer";
 import { useSession } from "../context";
 
+/* Symbols in chips are decorative (the text carries the meaning) and are
+   hidden from screen readers so they aren't spoken as noise ("white heavy
+   check mark", "raised hand", …). */
 function confidenceChip(f: FieldValue) {
-  if (f.status === "corrected") return <span className="chip ok">✓ corrected by you</span>;
-  if (f.status === "confirmed") return <span className="chip ok">✓ confirmed</span>;
-  if (f.status === "abstained") return <span className="chip alert">✋ abstained — needs your entry</span>;
+  if (f.status === "corrected")
+    return (
+      <span className="chip ok">
+        <span aria-hidden="true">✓ </span>corrected by you
+      </span>
+    );
+  if (f.status === "confirmed")
+    return (
+      <span className="chip ok">
+        <span aria-hidden="true">✓ </span>confirmed
+      </span>
+    );
+  if (f.status === "abstained")
+    return (
+      <span className="chip alert">
+        <span aria-hidden="true">✋ </span>abstained — needs your entry
+      </span>
+    );
   if (f.confidence >= 0.9) return <span className="chip neutral">extracted · high confidence ({Math.round(f.confidence * 100)}%)</span>;
   return <span className="chip warn">extracted · check carefully ({Math.round(f.confidence * 100)}%)</span>;
 }
@@ -21,6 +39,17 @@ export default function Profile() {
   const [editing, setEditing] = useState<string | null>(null); // field name being corrected
   const [editValue, setEditValue] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
+  /* Element id to focus after the next render. Confirming/correcting disables
+     or unmounts the button that was pressed, which would otherwise drop
+     keyboard focus to <body> and force the user to Tab from the top of the
+     page again (WCAG 2.4.3). */
+  const [pendingFocus, setPendingFocus] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!pendingFocus) return;
+    document.getElementById(pendingFocus)?.focus();
+    setPendingFocus(null);
+  }, [pendingFocus]);
 
   if (!sessionId || !session) {
     return (
@@ -67,11 +96,25 @@ export default function Profile() {
       const r = await api.updateField(sessionId!, docId, field, action, value);
       await refresh();
       setEditing(null);
+      if (action === "confirm") {
+        // Keep the keyboard on the work: land on the next unconfirmed row's
+        // field/zoom button (so the user can inspect the source box before
+        // confirming), or the status banner once this document is done.
+        const fields = active?.fields ?? [];
+        const idx = fields.findIndex((f) => f.field === field);
+        const needsAction = (f: FieldValue) =>
+          f.field !== field && f.status !== "confirmed" && f.status !== "corrected" && f.value !== null;
+        const next = fields.find((f, i) => i > idx && needsAction(f)) ?? fields.find(needsAction);
+        setPendingFocus(next ? `field-${next.field}` : "profile-status");
+      } else {
+        setPendingFocus(`correct-${field}`);
+      }
       const income = r.calc ? ` Annualized income is now $${r.calc.annualized_income.toLocaleString(undefined, { minimumFractionDigits: 2 })}.` : "";
       announce(`${field} ${action === "confirm" ? "confirmed" : "corrected"}.${income}`);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Update failed.";
       setError(msg);
+      setPendingFocus(action === "confirm" ? `confirm-${field}` : `correct-${field}`);
       announce(`Error: ${msg}`);
     } finally {
       setBusy(false);
@@ -84,6 +127,7 @@ export default function Profile() {
     try {
       await api.confirmAll(sessionId!, docId);
       await refresh();
+      setPendingFocus("profile-status");
       announce(`All extracted values on ${docId} confirmed. Downstream calculation updated.`);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Could not confirm.";
@@ -126,7 +170,9 @@ export default function Profile() {
           {error}
         </p>
       )}
-      {busy && <p aria-hidden="true">Working…</p>}
+      {/* Perceivable to screen readers browsing the page too; completion is
+          announced separately via the polite live region. */}
+      {busy && <p>Working…</p>}
 
       {docs.length > 0 && (
         <>
@@ -157,7 +203,9 @@ export default function Profile() {
               )}
               {(active.advisory_flags?.length ?? 0) > 0 && (
                 <div className="banner" role="note">
-                  <strong>🔍 AI cross-check suggests a second look (advisory only — nothing was changed):</strong>
+                  <strong>
+                    <span aria-hidden="true">🔍 </span>AI cross-check suggests a second look (advisory only — nothing was changed):
+                  </strong>
                   <ul style={{ margin: "0.3rem 0 0" }}>
                     {active.advisory_flags!.map((f) => (
                       <li key={f.field}>
@@ -186,6 +234,7 @@ export default function Profile() {
                         <tr key={f.field}>
                           <th scope="row">
                             <button
+                              id={`field-${f.field}`}
                               className="secondary"
                               style={{ minHeight: 32, padding: "0.2rem 0.6rem" }}
                               onClick={() => setFocusField(focusField === f.field ? null : f.field)}
@@ -211,12 +260,19 @@ export default function Profile() {
                                   type="text"
                                   value={editValue}
                                   onChange={(e) => setEditValue(e.target.value)}
-                                  autoFocus
                                 />
                                 <button type="submit" style={{ marginTop: "0.3rem" }}>
                                   Save
                                 </button>{" "}
-                                <button type="button" className="secondary" style={{ marginTop: "0.3rem" }} onClick={() => setEditing(null)}>
+                                <button
+                                  type="button"
+                                  className="secondary"
+                                  style={{ marginTop: "0.3rem" }}
+                                  onClick={() => {
+                                    setEditing(null);
+                                    setPendingFocus(`correct-${f.field}`);
+                                  }}
+                                >
                                   Cancel
                                 </button>
                               </form>
@@ -229,6 +285,7 @@ export default function Profile() {
                           <td>{confidenceChip(f)}</td>
                           <td>
                             <button
+                              id={`confirm-${f.field}`}
                               className="secondary"
                               disabled={f.status === "confirmed" || f.status === "corrected" || f.value === null || busy}
                               onClick={() => act(active.document_id, f.field, "confirm")}
@@ -236,12 +293,14 @@ export default function Profile() {
                               Confirm
                             </button>{" "}
                             <button
+                              id={`correct-${f.field}`}
                               className="secondary"
                               disabled={busy}
                               onClick={() => {
                                 setEditing(f.field);
                                 setEditValue(f.value === null ? "" : String(f.value));
                                 setFocusField(f.field);
+                                setPendingFocus(`edit-${f.field}`);
                               }}
                             >
                               Correct
@@ -265,10 +324,13 @@ export default function Profile() {
             </section>
           )}
 
-          <div className={remaining === 0 ? "banner" : "banner warn"} role="status">
+          <div id="profile-status" tabIndex={-1} className={remaining === 0 ? "banner" : "banner warn"} role="status">
             {remaining === 0 ? (
               <>
-                <strong>✓ Profile confirmed.</strong> Every value is confirmed or corrected — continue to{" "}
+                <strong>
+                  <span aria-hidden="true">✓ </span>Profile confirmed.
+                </strong>{" "}
+                Every value is confirmed or corrected — continue to{" "}
                 <Link to="/understand">Step 2 · Understand</Link>.
               </>
             ) : (
