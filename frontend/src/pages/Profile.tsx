@@ -190,7 +190,7 @@ export default function Profile() {
                               style={{ minHeight: 32, padding: "0.2rem 0.6rem" }}
                               onClick={() => setFocusField(focusField === f.field ? null : f.field)}
                               aria-pressed={focusField === f.field}
-                              aria-label={`Highlight source box for ${f.field} on the document preview`}
+                              aria-label={`Highlight and zoom to the source box for ${f.field} on the document preview`}
                             >
                               {f.field.replaceAll("_", " ")}
                             </button>
@@ -241,6 +241,7 @@ export default function Profile() {
                               onClick={() => {
                                 setEditing(f.field);
                                 setEditValue(f.value === null ? "" : String(f.value));
+                                setFocusField(f.field);
                               }}
                             >
                               Correct

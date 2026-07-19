@@ -1,9 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import * as pdfjsLib from "pdfjs-dist";
+import type { PDFPageProxy, RenderTask } from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import type { FieldValue } from "../api";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
+
+const BASE_SCALE = 0.9;
+const ZOOM_SCALE = 2.0;
 
 interface Props {
   fileUrl: string;
@@ -14,29 +18,29 @@ interface Props {
 }
 
 /** Renders page 1 of the source PDF with the evidence source-boxes overlaid.
- * The same information is available as text in the fields table next to it,
- * so the canvas is marked as an image with a descriptive label. */
+ * Focusing a single field re-renders at ZOOM_SCALE and scrolls its cited box
+ * to the center of the stage (instant, no animation). The same information is
+ * available as text in the fields table next to it, so the canvas is marked
+ * as an image with a descriptive label. */
 export default function EvidenceViewer({ fileUrl, documentId, fields, focusField }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [page, setPage] = useState<PDFPageProxy | null>(null);
   const [dims, setDims] = useState<{ w: number; h: number; scale: number; pageH: number } | null>(null);
   const [error, setError] = useState("");
 
+  const focused = focusField ? fields.find((f) => f.field === focusField && f.bbox) : undefined;
+  const scale = focused ? ZOOM_SCALE : BASE_SCALE;
+
   useEffect(() => {
     let cancelled = false;
+    setPage(null);
     (async () => {
       try {
         const doc = await pdfjsLib.getDocument(fileUrl).promise;
-        const page = await doc.getPage(1);
-        const scale = 0.9;
-        const viewport = page.getViewport({ scale });
-        const canvas = canvasRef.current;
-        if (!canvas || cancelled) return;
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        const ctx = canvas.getContext("2d")!;
-        await page.render({ canvasContext: ctx, viewport }).promise;
+        const p = await doc.getPage(1);
         if (!cancelled) {
-          setDims({ w: viewport.width, h: viewport.height, scale, pageH: viewport.height / scale });
+          setPage(p);
           setError("");
         }
       } catch (e) {
@@ -47,6 +51,46 @@ export default function EvidenceViewer({ fileUrl, documentId, fields, focusField
       cancelled = true;
     };
   }, [fileUrl]);
+
+  useEffect(() => {
+    if (!page) return;
+    let cancelled = false;
+    let task: RenderTask | undefined;
+    (async () => {
+      try {
+        const viewport = page.getViewport({ scale });
+        const canvas = canvasRef.current;
+        if (!canvas || cancelled) return;
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const ctx = canvas.getContext("2d")!;
+        task = page.render({ canvasContext: ctx, viewport });
+        await task.promise;
+        if (cancelled) return;
+        const pageH = viewport.height / scale;
+        setDims({ w: viewport.width, h: viewport.height, scale, pageH });
+        /* Center the focused citation box in the scrollable stage. Instant on
+         * purpose: no motion, so no prefers-reduced-motion concern. */
+        const stage = stageRef.current;
+        if (stage && focused?.bbox) {
+          const [x1, y1, x2, y2] = focused.bbox;
+          stage.scrollLeft = ((x1 + x2) / 2) * scale - stage.clientWidth / 2;
+          stage.scrollTop = (pageH - (y1 + y2) / 2) * scale - stage.clientHeight / 2;
+        } else if (stage) {
+          stage.scrollLeft = 0;
+          stage.scrollTop = 0;
+        }
+      } catch (e) {
+        if (!cancelled && !(e instanceof Error && e.name === "RenderingCancelledException")) {
+          setError(e instanceof Error ? e.message : "Could not render the PDF preview.");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+      task?.cancel();
+    };
+  }, [page, scale, focused?.field]);
 
   const boxes = fields.filter(
     (f) => f.bbox && (focusField === null || f.field === focusField),
@@ -60,8 +104,12 @@ export default function EvidenceViewer({ fileUrl, documentId, fields, focusField
           listed in the table.
         </p>
       ) : (
-        <div className="pdf-stage">
-          <canvas ref={canvasRef} role="img" aria-label={`Page 1 of ${documentId}. Highlighted evidence: ${boxes.map((b) => b.field).join(", ") || "none"}.`} />
+        <div ref={stageRef} className={`pdf-stage${focused ? " zoomed" : ""}`}>
+          <canvas
+            ref={canvasRef}
+            role="img"
+            aria-label={`Page 1 of ${documentId}${focused ? `, zoomed to the cited box for ${focused.field}` : ""}. Highlighted evidence: ${boxes.map((b) => b.field).join(", ") || "none"}.`}
+          />
           {dims &&
             boxes.map((f) => {
               const [x1, y1, x2, y2] = f.bbox!;

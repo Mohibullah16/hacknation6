@@ -13,6 +13,7 @@ _Last updated: 2026-07-19 (correction + OpenAI-assist build **COMPLETE and verif
 | Degraded demo doc `demo/demo_pay_stub_lowquality.pdf` (hourly_rate abstains at 0.485; regenerate/verify via `python scripts/make_demo_doc.py`) | ✅ |
 | `backend/requirements.txt` (incl. `openai`, installed: 1.109.1) | ✅ |
 | **Verified offline:** `run_eval.py` 100.00% all sections · `api_smoke.py` ALL PASS · `/api/config` all-false with no key · QA carries `assist_used=False` · `npm run build` clean (pre-existing pdfjs chunk-size warning only) | ✅ |
+| Evidence auto-zoom: focusing a field (highlight button or **Correct**) re-renders the PDF at 2× and centers its cited bbox in the scrollable stage (instant, no animation; keyboard-reachable via the existing table buttons; `EvidenceViewer.tsx` + `.pdf-stage.zoomed` CSS). `npm run build` clean; **needs one manual eyeball in the browser before the demo** | ✅ code |
 
 ## What remains (user tasks)
 

@@ -211,6 +211,8 @@ th { background: var(--panel); }
   overflow: auto;
 }
 .pdf-stage canvas { display: block; max-width: 100%; height: auto; }
+.pdf-stage.zoomed { max-height: 65vh; }
+.pdf-stage.zoomed canvas { max-width: none; height: auto; }
 .evidence-box {
   position: absolute;
   border: 3px solid #b45309;
